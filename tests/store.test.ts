@@ -92,7 +92,7 @@ describe('persistence', () => {
     const settings: Settings = { size: 8, difficulty: 'fiendish', autoX: false };
     persistence.saveSettings(settings, s);
     expect(persistence.loadSettings(s)).toEqual(settings);
-    expect(persistence.loadSettings(fakeStorage())).toEqual({ size: 7, difficulty: 'thinky', autoX: true });
+    expect(persistence.loadSettings(fakeStorage())).toEqual({ size: 9, difficulty: 'thinky', autoX: true });
 
     let stats: Stats = persistence.loadStats(s);
     stats = persistence.recordWin(stats, 5, 'relaxed', true);
