@@ -45,17 +45,30 @@ describe('growRegions', () => {
   });
 });
 
-describe('generateCandidate', () => {
-  it('when it returns, the puzzle is unique and solved by its own arrangement', () => {
-    let returned = 0;
-    for (let seed = 1; seed <= 20; seed++) {
-      const out = generateCandidate(6, mulberry32(seed));
-      if (!out) continue;
-      returned++;
-      expect(countSolutions(out.puzzle, 2)).toBe(1);
-      const { cols } = out.solution;
-      cols.forEach((c, r) => expect(out.puzzle.regions[idx(6, r, c)]).toBe(r));
+describe('generateCandidate with repair', () => {
+  it('returned candidates are unique, valid, and solved by their arrangement', () => {
+    for (const size of [5, 6, 7, 8, 9]) {
+      let collected = 0;
+      for (let seed = 1; seed <= 200 && collected < 5; seed++) {
+        const out = generateCandidate(size, mulberry32(seed * 131 + size));
+        if (!out) continue;
+        collected++;
+        expect(countSolutions(out.puzzle, 2)).toBe(1);
+        expect(regionsValid(out.puzzle)).toBe(true);
+        out.solution.cols.forEach((c, r) => expect(out.puzzle.regions[idx(size, r, c)]).toBe(r));
+      }
+      expect(collected).toBe(5);
     }
-    expect(returned).toBeGreaterThan(0);
+  });
+
+  it('throughput: size 9 yields at least 20 uniques in 1.5s', () => {
+    const t0 = performance.now();
+    let uniques = 0;
+    let attempt = 0;
+    while (performance.now() - t0 < 1500) {
+      attempt++;
+      if (generateCandidate(9, mulberry32(attempt * 7 + 9000))) uniques++;
+    }
+    expect(uniques).toBeGreaterThanOrEqual(20);
   });
 });
