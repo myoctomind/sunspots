@@ -15,7 +15,7 @@ const client = new GenClient(() =>
 let settings: Settings = persistence.loadSettings();
 let stats: Stats = persistence.loadStats();
 let game: Game | null = null;
-let hint: { stage: 'nudged'; step: Step | null; mistakes: number[]; revealed: boolean } | null = null;
+let hint: { stage: 'nudged' | 'revealed'; step: Step | null; mistakes: number[]; revealed: boolean } | null = null;
 let winRecorded = false;
 let genToken = 0;
 
@@ -120,7 +120,8 @@ function render(): void {
 function onHint(): void {
   if (!game || game.isWon()) return;
   const text = $('hint-text');
-  if (!hint) {
+  if (!hint || hint.stage === 'revealed') {
+    hint = null;
     game.noteHint();
     const mistakes = game.mistakes();
     if (mistakes.length) {
@@ -128,13 +129,13 @@ function onHint(): void {
       text.textContent = 'Something’s off — one of your marks isn’t right. Tap Hint again to see it.';
     } else {
       const st = initState(game.puzzle, game.cells, game.autoMarks(settings.autoX));
-      const step = nextStep(st, 3, (g) => `the ${regionName(g)}`);
+      const step = nextStep(st, 3, regionName);
       if (!step) { text.textContent = 'No forced move found — try undoing a little.'; hint = null; }
       else {
         hint = { stage: 'nudged', step, mistakes: [], revealed: false };
         const locus = step.locus;
         text.textContent =
-          locus.kind === 'region' ? `Look at ${regionName(locus.index)}…`
+          locus.kind === 'region' ? `Look at the ${regionName(locus.index)}…`
           : locus.kind === 'row' ? `Look at row ${locus.index + 1}…`
           : locus.kind === 'col' ? `Look at column ${locus.index + 1}…`
           : 'Look at the glowing cells…';
@@ -144,13 +145,17 @@ function onHint(): void {
     renderHintHighlight();
   } else {
     if (hint.step) {
-      game.applyHintStep(hint.step);
-      const keep = hint.step.text;
+      const step = hint.step;
+      game.applyHintStep(step);
       afterChange();
-      text.textContent = keep;
+      if (!game.isWon()) {
+        hint = { stage: 'revealed', step, mistakes: [], revealed: true };
+        renderHintHighlight();
+      }
+      text.textContent = step.text;
       text.hidden = false;
     } else if (hint.mistakes.length) {
-      hint.revealed = true;
+      hint = { ...hint, stage: 'revealed', revealed: true };
       text.textContent = 'These marks are wrong — undo or clear them.';
       renderHintHighlight();
     }
