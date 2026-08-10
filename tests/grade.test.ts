@@ -66,7 +66,9 @@ describe('findMistakes', () => {
     const { puzzle, solution } = cand;
     const cells: CellState[] = new Array(25).fill('empty');
     const solCell0 = idx(5, 0, solution.cols[0]);
-    const wrongCell = solCell0 === 24 ? 23 : 24;
+    const wrongCell = [...Array(25).keys()].find(
+      (i) => solution.cols[Math.floor(i / 5)] !== i % 5 && i !== solCell0,
+    )!;
     cells[wrongCell] = 'cat';   // a cat not on the solution
     cells[solCell0] = 'mark';   // a mark covering a solution cell
     const m = findMistakes(puzzle, solution, cells).sort((a, b) => a - b);
