@@ -50,6 +50,7 @@ export interface BoardViewState {
   autoMarks: Set<number>;
   conflicts: number[];
   highlight: number[];
+  focus: number | null;
   won: boolean;
 }
 
@@ -169,6 +170,7 @@ export class BoardView {
       g.classList.toggle('auto', state === 'empty' && s.autoMarks.has(i));
       g.classList.toggle('conflict', conflictSet.has(i));
       g.classList.toggle('hint', highlightSet.has(i));
+      g.classList.toggle('kbfocus', s.focus === i);
     });
     this.svg.classList.toggle('won', s.won);
   }

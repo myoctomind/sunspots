@@ -17,14 +17,16 @@ let stats: Stats = persistence.loadStats();
 let game: Game | null = null;
 let hint: { stage: 'nudged'; step: Step | null; mistakes: number[]; revealed: boolean } | null = null;
 let winRecorded = false;
+let genToken = 0;
 
 const board = new BoardView($('board') as unknown as SVGSVGElement, {
   onTap(i) {
+    kbFocusVisible = false;
     if (!game || game.isWon()) return;
     game.cycle(i, settings.autoX && game.autoMarks(true).has(i));
     afterChange();
   },
-  onPaintStart() { if (game && !game.isWon()) game.beginPaint(); },
+  onPaintStart() { kbFocusVisible = false; if (game && !game.isWon()) game.beginPaint(); },
   onPaintCell(i) { if (game && !game.isWon()) game.paint(i); render(); },
   onPaintEnd() { if (game) { game.endPaint(); afterChange(); } },
 });
@@ -61,9 +63,11 @@ function requestedDifficulty(): Difficulty {
 }
 
 async function newGame(): Promise<void> {
+  const token = ++genToken;
   $('new-btn').setAttribute('disabled', '');
   try {
     const g: Generated = await client.request(settings.size, requestedDifficulty());
+    if (token !== genToken) return;
     game = new Game(g);
     winRecorded = false;
     hint = null;
@@ -71,10 +75,12 @@ async function newGame(): Promise<void> {
     board.setPuzzle(g.puzzle);
     afterChange();
     client.prefetch(settings.size, requestedDifficulty());
+    focusCell = 0;
+    kbFocusVisible = false;
   } catch {
-    toast('Couldn’t brew a puzzle — tap New to retry.');
+    if (token === genToken) toast('Couldn’t brew a puzzle — tap New to retry.');
   } finally {
-    $('new-btn').removeAttribute('disabled');
+    if (token === genToken) $('new-btn').removeAttribute('disabled');
   }
 }
 
@@ -104,6 +110,7 @@ function render(): void {
     autoMarks: game.autoMarks(settings.autoX),
     conflicts: game.conflictCells(),
     highlight: hint ? (hint.step ? hint.step.locus.cells : (hint.revealed ? hint.mistakes : [])) : [],
+    focus: kbFocusVisible ? focusCell : null,
     won: game.isWon(),
   });
   $('streak').textContent = String(stats.streak);
@@ -157,6 +164,7 @@ function renderHintHighlight(): void {
     autoMarks: game.autoMarks(settings.autoX),
     conflicts: game.conflictCells(),
     highlight: hint ? (hint.step ? hint.step.locus.cells : (hint.revealed ? hint.mistakes : [])) : [],
+    focus: kbFocusVisible ? focusCell : null,
     won: game.isWon(),
   });
 }
@@ -202,10 +210,13 @@ $('autox-toggle').addEventListener('change', (e) => {
 
 // Keyboard (desktop nicety)
 let focusCell = 0;
+let kbFocusVisible = false;
 document.addEventListener('keydown', (e) => {
   if (!game || game.isWon() || ($('settings') as HTMLDialogElement).open) return;
+  if (focusCell >= game.puzzle.size * game.puzzle.size) focusCell = 0;
   const size = game.puzzle.size;
   const r = Math.floor(focusCell / size), c = focusCell % size;
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') kbFocusVisible = true;
   if (e.key === 'ArrowUp' && r > 0) focusCell -= size;
   else if (e.key === 'ArrowDown' && r < size - 1) focusCell += size;
   else if (e.key === 'ArrowLeft' && c > 0) focusCell -= 1;
@@ -221,10 +232,15 @@ document.addEventListener('keydown', (e) => {
 // Boot: resume or fresh
 const saved = persistence.loadGame();
 if (saved) {
-  game = Game.fromSaved(saved);
-  board.setPuzzle(game.puzzle);
-  render();
-  client.prefetch(settings.size, requestedDifficulty());
+  try {
+    game = Game.fromSaved(saved);
+    board.setPuzzle(game.puzzle);
+    render();
+    client.prefetch(settings.size, requestedDifficulty());
+  } catch {
+    persistence.clearGame();
+    void newGame();
+  }
 } else {
   void newGame();
 }
