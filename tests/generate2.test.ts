@@ -12,13 +12,17 @@ describe('generatePuzzle', () => {
     expect(gradePuzzle(g.puzzle)).toBe('relaxed');
   });
 
-  it('past-deadline fallback still returns a graded, unique puzzle', () => {
-    let t = 0;
-    const fakeNow = () => { t += 500; return t; }; // deadline blows almost immediately
-    const g = generatePuzzle(7, 'fiendish', 99, 1000, fakeNow);
-    expect(g.requested).toBe('fiendish');
-    expect(['relaxed', 'thinky', 'fiendish']).toContain(g.grade);
-    expect(countSolutions(g.puzzle, 2)).toBe(1);
+  it('past-deadline fallback provably exercises the non-matching path', () => {
+    let hit: ReturnType<typeof generatePuzzle> | null = null;
+    for (let seed = 1; seed <= 50 && !hit; seed++) {
+      let t = 0;
+      const g = generatePuzzle(7, 'fiendish', seed, 1000, () => { t += 500; return t; });
+      if (g.grade !== 'fiendish') hit = g;
+    }
+    expect(hit).not.toBeNull();
+    expect(hit!.requested).toBe('fiendish');
+    expect(['relaxed', 'thinky']).toContain(hit!.grade);
+    expect(countSolutions(hit!.puzzle, 2)).toBe(1);
   });
 
   it('is deterministic for a given seed', () => {

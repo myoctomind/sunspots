@@ -150,8 +150,12 @@ export function generatePuzzle(
         }
       }
     }
-    if (now() - start >= deadlineMs && best) {
+    const elapsed = now() - start;
+    if (elapsed >= deadlineMs && best) {
       return { ...best, requested: difficulty };
+    }
+    if (elapsed >= deadlineMs * 3) {
+      throw new Error(`sunspots: no gradable ${size}x${size} candidate within ${deadlineMs * 3}ms`);
     }
   }
 }
