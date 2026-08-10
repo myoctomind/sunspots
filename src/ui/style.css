@@ -150,3 +150,24 @@ dialog input[type='checkbox'] { width: 22px; height: 22px; }
   #board .cell.conflict .cat { animation: none; }
   #toast { transition: none; }
 }
+
+.yarn {
+  position: fixed;
+  top: -2rem;
+  animation: yarnfall 3.2s ease-in forwards;
+  pointer-events: none;
+  z-index: 10;
+}
+@keyframes yarnfall {
+  to { transform: translateY(110vh) rotate(300deg); opacity: 0.9; }
+}
+#board.won .cell.has-cat .cat { animation: purr 1.2s ease-in-out; }
+@keyframes purr {
+  0%, 100% { transform: scale(1); }
+  35% { transform: scale(1.09, 0.94); }
+  70% { transform: scale(0.97, 1.05); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .yarn { display: none; }
+  #board.won .cell.has-cat .cat { animation: none; }
+}
