@@ -134,11 +134,12 @@ function onHint(): void {
       else {
         hint = { stage: 'nudged', step, mistakes: [], revealed: false };
         const locus = step.locus;
-        text.textContent =
-          locus.kind === 'region' ? `Look at the ${regionName(locus.index)}…`
-          : locus.kind === 'row' ? `Look at row ${locus.index + 1}…`
-          : locus.kind === 'col' ? `Look at column ${locus.index + 1}…`
-          : 'Look at the glowing cells…';
+        const where =
+          locus.kind === 'region' ? `the ${regionName(locus.index)}`
+          : locus.kind === 'row' ? `row ${locus.index + 1}`
+          : locus.kind === 'col' ? `column ${locus.index + 1}`
+          : 'the glowing cells';
+        text.textContent = `Look at ${where}… tap Hint again for the why.`;
       }
     }
     text.hidden = false;

@@ -124,7 +124,7 @@ export class Game {
 }
 
 const KEYS = { settings: 'sunspots.settings', stats: 'sunspots.stats', game: 'sunspots.game' } as const;
-const DEFAULT_SETTINGS: Settings = { size: 7, difficulty: 'thinky', autoX: true };
+const DEFAULT_SETTINGS: Settings = { size: 9, difficulty: 'thinky', autoX: true };
 const DEFAULT_STATS: Stats = { counts: {}, streak: 0, bestStreak: 0 };
 
 function storageOr(s?: Storage): Storage | null {
