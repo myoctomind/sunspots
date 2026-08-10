@@ -37,6 +37,22 @@ function toast(msg: string): void {
   setTimeout(() => { t.classList.remove('show'); t.hidden = true; }, 3000);
 }
 
+function celebrate(): void {
+  toast(game && game.hintsUsed === 0 ? 'Clean solve — every cat in its sunspot ☀︎' : 'Every cat in its sunspot ☀︎');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const n = 8;
+  for (let k = 0; k < n; k++) {
+    const y = document.createElement('div');
+    y.className = 'yarn';
+    y.textContent = '🧶';
+    y.style.left = `${8 + Math.random() * 84}%`;
+    y.style.animationDelay = `${Math.random() * 0.8}s`;
+    y.style.fontSize = `${1 + Math.random() * 0.8}rem`;
+    document.body.appendChild(y);
+    setTimeout(() => y.remove(), 4000);
+  }
+}
+
 function fiendishAllowed(size: number): boolean { return size >= 7; }
 
 function requestedDifficulty(): Difficulty {
@@ -72,6 +88,7 @@ function afterChange(): void {
         stats = persistence.recordWin(stats, game.puzzle.size, game.grade, game.hintsUsed === 0);
         persistence.saveStats(stats);
         persistence.clearGame();
+        celebrate();
       }
     } else {
       persistence.saveGame(game.toSaved());
@@ -90,7 +107,7 @@ function render(): void {
     won: game.isWon(),
   });
   $('streak').textContent = String(stats.streak);
-  ($('undo-btn') as HTMLButtonElement).disabled = game.undoStack.length === 0;
+  ($('undo-btn') as HTMLButtonElement).disabled = game.undoStack.length === 0 || game.isWon();
 }
 
 function onHint(): void {
@@ -120,7 +137,6 @@ function onHint(): void {
     renderHintHighlight();
   } else {
     if (hint.step) {
-      text.textContent = hint.step.text;
       game.applyHintStep(hint.step);
       const keep = hint.step.text;
       afterChange();
