@@ -1,6 +1,7 @@
-import { type Puzzle, type Solution, idx, rowOf, colOf } from './board';
+import { type Puzzle, type Solution, type Difficulty, idx, rowOf, colOf } from './board';
+import { gradePuzzle } from './deduce';
 import { solutions } from './exact';
-import { type Rng, randInt, shuffled } from './rng';
+import { type Rng, randInt, shuffled, mulberry32 } from './rng';
 
 export function sampleArrangement(size: number, rng: Rng): number[] {
   const cols = new Array<number>(size).fill(-1);
@@ -111,4 +112,46 @@ export function generateCandidate(
   const repaired = repairToUnique(size, cols, regions, rng);
   if (!repaired) return null;
   return { puzzle: { size, regions: repaired }, solution: { cols } };
+}
+
+export interface Generated {
+  puzzle: Puzzle;
+  solution: Solution;
+  grade: Difficulty;
+  requested: Difficulty;
+}
+
+const RANK: Record<Difficulty, number> = { relaxed: 0, thinky: 1, fiendish: 2 };
+
+export function generatePuzzle(
+  size: number,
+  difficulty: Difficulty,
+  seed: number,
+  deadlineMs = 3000,
+  now: () => number = () => performance.now(),
+): Generated {
+  const rng = mulberry32(seed);
+  const start = now();
+  let best: { puzzle: Puzzle; solution: Solution; grade: Difficulty } | null = null;
+  const target = RANK[difficulty];
+
+  // Keep looping until we have at least something graded; stop early on exact match;
+  // stop trying to improve once the deadline passes.
+  for (;;) {
+    const cand = generateCandidate(size, rng);
+    if (cand) {
+      const grade = gradePuzzle(cand.puzzle);
+      if (grade) {
+        if (grade === difficulty) {
+          return { ...cand, grade, requested: difficulty };
+        }
+        if (!best || Math.abs(RANK[grade] - target) < Math.abs(RANK[best.grade] - target)) {
+          best = { ...cand, grade };
+        }
+      }
+    }
+    if (now() - start >= deadlineMs && best) {
+      return { ...best, requested: difficulty };
+    }
+  }
 }
