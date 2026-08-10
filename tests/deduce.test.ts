@@ -3,7 +3,7 @@ import {
   initState, placeCat, hasContradiction, nextStep, applyStep,
 } from '../src/engine/deduce';
 import { idx, type CellState } from '../src/engine/board';
-import { HAND5 } from './helpers';
+import { HAND5, rowRegions } from './helpers';
 
 describe('initState + placeCat propagation', () => {
   it('starts with all cells candidates on an empty board', () => {
@@ -72,5 +72,39 @@ describe('Tier 1 techniques', () => {
 
   it('returns null when no tier-1 step exists', () => {
     expect(nextStep(initState(HAND5), 1)).toBeNull();
+  });
+});
+
+describe('hint explanations carry the why', () => {
+  it('tier-1 text names the causes blocking the other cells', () => {
+    const st = initState({ size: 5, regions: rowRegions(5) });
+    placeCat(st, 12); // cat at (2,2) blocks (0,2) via its column
+    for (const i of [0, 1, 3]) st.cand[i] = false; // paw-marks → row 0 leaves only (0,4)
+    const step = nextStep(st, 1);
+    expect(step).not.toBeNull();
+    expect(step!.place).toBe(4);
+    expect(step!.text).toContain('shares a row or column with a cat');
+    expect(step!.text).toContain('paw-marked');
+  });
+
+  it('probe text names the starved unit and lights its doomed spots (region case)', () => {
+    const st = initState({ size: 5, regions: rowRegions(5) }, undefined, [1, 2, 3, 6, 9, 15]);
+    const step = nextStep(st, 3);
+    expect(step).not.toBeNull();
+    expect(step!.rule).toBe('probe');
+    expect(step!.eliminate).toEqual([5]);
+    expect(step!.text).toContain('patch 5');
+    expect(step!.text).not.toContain('part of the board');
+    expect(step!.locus.cells).toEqual([5, 20, 21, 22, 23, 24]);
+  });
+
+  it('probe text names the starved unit (line case)', () => {
+    const st = initState({ size: 5, regions: rowRegions(5) }, undefined, [0, 11, 13, 16, 17, 18, 20, 23]);
+    const step = nextStep(st, 3);
+    expect(step).not.toBeNull();
+    expect(step!.rule).toBe('probe');
+    expect(step!.eliminate).toEqual([2]);
+    expect(step!.text).toContain('column 4');
+    expect(step!.locus.cells).toEqual([2, 3, 8]);
   });
 });

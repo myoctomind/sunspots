@@ -73,35 +73,66 @@ export function hasContradiction(st: DeduceState): boolean {
   return bad(u.regions) || bad(u.rows) || bad(u.cols);
 }
 
+function listOr(parts: string[]): string {
+  if (parts.length <= 1) return parts[0] ?? '';
+  if (parts.length === 2) return `${parts[0]} or ${parts[1]}`;
+  return `${parts.slice(0, -1).join(', ')}, or ${parts[parts.length - 1]}`;
+}
+
+/** Why each blocked cell of a unit is out, summarized as an or-list of causes. */
+function blockedReason(st: DeduceState, cells: number[]): string {
+  const { size } = st;
+  const cats = [...Array(size * size).keys()].filter((i) => st.cats[i]);
+  let line = false, patch = false, touch = false, mark = false;
+  for (const j of cells) {
+    if (st.cand[j] || st.cats[j]) continue;
+    const r = rowOf(size, j), c = colOf(size, j);
+    const nb = neighbors(size, j);
+    if (cats.some((i) => rowOf(size, i) === r || colOf(size, i) === c)) line = true;
+    else if (cats.some((i) => st.regions[i] === st.regions[j])) patch = true;
+    else if (nb.some((i) => st.cats[i])) touch = true;
+    else mark = true;
+  }
+  const parts: string[] = [];
+  if (line) parts.push('shares a row or column with a cat');
+  if (patch) parts.push('sits in a patch whose cat is already napping');
+  if (touch) parts.push('touches a cat');
+  if (mark) parts.push('is paw-marked');
+  return parts.length ? listOr(parts) : 'is blocked';
+}
+
 function tier1(st: DeduceState, name: NameFn): Step | null {
   const u = unitInfo(st);
   for (let g = 0; g < st.size; g++) {
     const { cat, cands } = u.regions[g];
     if (!cat && cands.length === 1) {
+      const cells = regionCells({ size: st.size, regions: st.regions }, g);
       return {
         tier: 1, rule: 'lone-region', place: cands[0], eliminate: [],
-        locus: { kind: 'region', index: g, cells: regionCells({ size: st.size, regions: st.regions }, g) },
-        text: `The ${name(g)} has a single sunny cell left — the cat must nap there.`,
+        locus: { kind: 'region', index: g, cells },
+        text: `Every other cell of the ${name(g)} ${blockedReason(st, cells)} — one sunny spot left, so its cat naps here.`,
       };
     }
   }
   for (let r = 0; r < st.size; r++) {
     const { cat, cands } = u.rows[r];
     if (!cat && cands.length === 1) {
+      const cells = Array.from({ length: st.size }, (_, c) => idx(st.size, r, c));
       return {
         tier: 1, rule: 'lone-row', place: cands[0], eliminate: [],
-        locus: { kind: 'row', index: r, cells: Array.from({ length: st.size }, (_, c) => idx(st.size, r, c)) },
-        text: `Row ${r + 1} has only one spot left for its cat.`,
+        locus: { kind: 'row', index: r, cells },
+        text: `Every other cell in row ${r + 1} ${blockedReason(st, cells)} — one spot left, so row ${r + 1}'s cat sits here.`,
       };
     }
   }
   for (let c = 0; c < st.size; c++) {
     const { cat, cands } = u.cols[c];
     if (!cat && cands.length === 1) {
+      const cells = Array.from({ length: st.size }, (_, r) => idx(st.size, r, c));
       return {
         tier: 1, rule: 'lone-col', place: cands[0], eliminate: [],
-        locus: { kind: 'col', index: c, cells: Array.from({ length: st.size }, (_, r) => idx(st.size, r, c)) },
-        text: `Column ${c + 1} has only one spot left for its cat.`,
+        locus: { kind: 'col', index: c, cells },
+        text: `Every other cell in column ${c + 1} ${blockedReason(st, cells)} — one spot left, so column ${c + 1}'s cat sits here.`,
       };
     }
   }
@@ -128,7 +159,7 @@ function tier2(st: DeduceState, name: NameFn): Step | null {
       if (elim.length) return {
         tier: 2, rule: 'confine-region-row', place: null, eliminate: elim,
         locus: { kind: 'region', index: g, cells: cands.slice() },
-        text: `The ${name(g)}'s cat must be in row ${r + 1} — the rest of that row can't hold a cat.`,
+        text: `All the ${name(g)}'s open cells sit in row ${r + 1} — its cat is sure to take that row, so nothing else in row ${r + 1} can hold a cat.`,
       };
     }
     const cs = new Set(cands.map((i) => colOf(size, i)));
@@ -138,7 +169,7 @@ function tier2(st: DeduceState, name: NameFn): Step | null {
       if (elim.length) return {
         tier: 2, rule: 'confine-region-col', place: null, eliminate: elim,
         locus: { kind: 'region', index: g, cells: cands.slice() },
-        text: `The ${name(g)}'s cat must be in column ${c + 1} — the rest of that column can't hold a cat.`,
+        text: `All the ${name(g)}'s open cells sit in column ${c + 1} — its cat is sure to take that column, so nothing else in column ${c + 1} can hold a cat.`,
       };
     }
   }
@@ -154,7 +185,7 @@ function tier2(st: DeduceState, name: NameFn): Step | null {
       if (elim.length) return {
         tier: 2, rule: 'confine-row-region', place: null, eliminate: elim,
         locus: { kind: 'row', index: r, cells: cands.slice() },
-        text: `Row ${r + 1}'s cat has to come from the ${name(g)} — so the rest of that patch is out.`,
+        text: `Row ${r + 1}'s open cells all belong to the ${name(g)} — its cat must sit in row ${r + 1}, so that patch's other cells are out.`,
       };
     }
   }
@@ -168,7 +199,7 @@ function tier2(st: DeduceState, name: NameFn): Step | null {
       if (elim.length) return {
         tier: 2, rule: 'confine-col-region', place: null, eliminate: elim,
         locus: { kind: 'col', index: c, cells: cands.slice() },
-        text: `Column ${c + 1}'s cat has to come from the ${name(g)} — so the rest of that patch is out.`,
+        text: `Column ${c + 1}'s open cells all belong to the ${name(g)} — its cat must sit in column ${c + 1}, so that patch's other cells are out.`,
       };
     }
   }
@@ -186,7 +217,7 @@ function tier2(st: DeduceState, name: NameFn): Step | null {
         return {
           tier: 2, rule: 'neighbor-force', place: null, eliminate: [x],
           locus: { kind: 'cells', index: -1, cells: [x, ...cands] },
-          text: `A cat here would crowd every spot the ${name(g)} has left — so this cell stays empty.`,
+          text: `Every open cell of the ${name(g)} touches this one — a cat napping here would leave that patch nowhere to go, so this cell stays empty.`,
         };
       }
     }
@@ -228,7 +259,7 @@ function tier3Sets(st: DeduceState, name: NameFn): Step | null {
           return {
             tier: 3, rule: `set-${axis}s`, place: null, eliminate: elim,
             locus: { kind: 'cells', index: -1, cells: gs.flatMap((g) => u.regions[g].cands) },
-            text: `${patches} squeeze into ${k} ${axis}s between them — those ${axis}s belong to those patches alone.`,
+            text: `Between them, ${patches} only have open cells in ${k} ${axis}s — their cats will fill those ${axis}s, so no other patch can use them.`,
           };
         }
       }
@@ -241,6 +272,30 @@ function cloneState(st: DeduceState): DeduceState {
   return { size: st.size, regions: st.regions, cand: st.cand.slice(), cats: st.cats.slice() };
 }
 
+/** Name the unit the trial starved and light its still-open spots on the real board. */
+function probeExplain(st: DeduceState, x: number, trial: DeduceState, name: NameFn): Step {
+  const { size } = st;
+  const u = unitInfo(trial);
+  const units = [
+    ...u.regions.map((e, g) => ({
+      ...e, desc: `the ${name(g)}`, cells: regionCells({ size, regions: st.regions }, g),
+    })),
+    ...u.rows.map((e, r) => ({
+      ...e, desc: `row ${r + 1}`, cells: Array.from({ length: size }, (_, c) => idx(size, r, c)),
+    })),
+    ...u.cols.map((e, c) => ({
+      ...e, desc: `column ${c + 1}`, cells: Array.from({ length: size }, (_, r) => idx(size, r, c)),
+    })),
+  ];
+  const dead = units.find((e) => !e.cat && e.cands.length === 0);
+  const spots = dead ? dead.cells.filter((i) => st.cand[i] && i !== x) : [];
+  return {
+    tier: 3, rule: 'probe', place: null, eliminate: [x],
+    locus: { kind: 'cells', index: -1, cells: [x, ...spots] },
+    text: `Try a cat here and ${dead?.desc ?? 'part of the board'} ends up with nowhere to nap — a dead end, so this cell must stay empty.`,
+  };
+}
+
 function tier3Probe(st: DeduceState, name: NameFn): Step | null {
   const { size } = st;
   for (let x = 0; x < size * size; x++) {
@@ -248,24 +303,12 @@ function tier3Probe(st: DeduceState, name: NameFn): Step | null {
     const trial = cloneState(st);
     placeCat(trial, x);
     for (let guard = 0; guard < size * size * 4; guard++) {
-      if (hasContradiction(trial)) {
-        return {
-          tier: 3, rule: 'probe', place: null, eliminate: [x],
-          locus: { kind: 'cells', index: -1, cells: [x] },
-          text: `Test this cell: a cat napping here leads a patch, row, or column to a dead end — so it can't.`,
-        };
-      }
+      if (hasContradiction(trial)) return probeExplain(st, x, trial, name);
       const s = tier1(trial, name) ?? tier2(trial, name);
       if (!s) break;
       applyStep(trial, s);
     }
-    if (hasContradiction(trial)) {
-      return {
-        tier: 3, rule: 'probe', place: null, eliminate: [x],
-        locus: { kind: 'cells', index: -1, cells: [x] },
-        text: `Test this cell: a cat napping here leads a patch, row, or column to a dead end — so it can't.`,
-      };
-    }
+    if (hasContradiction(trial)) return probeExplain(st, x, trial, name);
   }
   return null;
 }
