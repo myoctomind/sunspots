@@ -3,9 +3,54 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#FAF3E7" />
     <title>Sunspots</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
   </head>
   <body>
-    <h1>Sunspots 🐈☀️ — scaffold OK</h1>
+    <header>
+      <h1>Sunspots</h1>
+      <button id="stats-chip" class="chip" aria-label="Stats">☀︎ <span id="streak">0</span></button>
+      <button id="settings-btn" class="chip" aria-label="Settings">⚙︎</button>
+    </header>
+
+    <main>
+      <svg id="board" role="application" aria-label="Sunspots board"></svg>
+      <p id="hint-text" hidden></p>
+    </main>
+
+    <nav id="bottom-bar">
+      <button id="undo-btn">↩︎ Undo</button>
+      <button id="hint-btn">☀︎ Hint</button>
+      <button id="new-btn">🐈 New</button>
+    </nav>
+
+    <dialog id="settings">
+      <h2>Settings</h2>
+      <label>Board
+        <select id="size-select">
+          <option value="5">5×5</option><option value="6">6×6</option>
+          <option value="7">7×7</option><option value="8">8×8</option>
+          <option value="9">9×9</option>
+        </select>
+      </label>
+      <label>Mood
+        <select id="difficulty-select">
+          <option value="relaxed">Relaxed</option>
+          <option value="thinky">Thinky</option>
+          <option value="fiendish">Fiendish</option>
+        </select>
+      </label>
+      <label class="row"><input type="checkbox" id="autox-toggle" /> Auto paw-marks</label>
+      <div id="stats-table"></div>
+      <p id="storage-note" hidden>Heads up: this browser is blocking storage, so stats and resume are off for this visit.</p>
+      <button id="settings-close">Done</button>
+    </dialog>
+
+    <div id="toast" hidden></div>
+
+    <script type="module" src="/src/ui/app.ts"></script>
   </body>
 </html>
