@@ -1,0 +1,84 @@
+import { type Difficulty } from '../engine/board';
+import { type Generated } from '../engine/generate';
+
+export interface WorkerLike {
+  onmessage: ((e: { data: any }) => void) | null;
+  onerror: ((e: unknown) => void) | null;
+  postMessage(data: any): void;
+  terminate(): void;
+}
+
+interface Pending {
+  resolve: (g: Generated) => void;
+  reject: (e: unknown) => void;
+  payload: { id: number; size: number; difficulty: Difficulty; seed: number };
+  cacheKey: string | null; // set for prefetches
+}
+
+export class GenClient {
+  private worker: WorkerLike;
+  private nextId = 1;
+  private seedCounter = Math.floor(Math.random() * 2 ** 31);
+  private pending = new Map<number, Pending>();
+  private cache = new Map<string, Generated>();
+  private respawned = false;
+
+  constructor(private makeWorker: () => WorkerLike) {
+    this.worker = this.spawn();
+  }
+
+  private spawn(): WorkerLike {
+    const w = this.makeWorker();
+    w.onmessage = (e) => {
+      const { id, result } = e.data as { id: number; result: Generated };
+      const p = this.pending.get(id);
+      if (!p) return;
+      this.pending.delete(id);
+      this.respawned = false;
+      if (p.cacheKey) this.cache.set(p.cacheKey, result);
+      p.resolve(result);
+    };
+    w.onerror = () => this.handleCrash();
+    return w;
+  }
+
+  private handleCrash(): void {
+    this.worker.terminate();
+    if (!this.respawned) {
+      this.respawned = true;
+      this.worker = this.spawn();
+      for (const p of this.pending.values()) this.worker.postMessage(p.payload);
+    } else {
+      const err = new Error('puzzle generation failed');
+      for (const p of this.pending.values()) p.reject(err);
+      this.pending.clear();
+      this.worker = this.spawn();
+      this.respawned = false;
+    }
+  }
+
+  private send(size: number, difficulty: Difficulty, cacheKey: string | null): Promise<Generated> {
+    const id = this.nextId++;
+    const payload = { id, size, difficulty, seed: (this.seedCounter++ >>> 0) };
+    return new Promise<Generated>((resolve, reject) => {
+      this.pending.set(id, { resolve, reject, payload, cacheKey });
+      this.worker.postMessage(payload);
+    });
+  }
+
+  request(size: number, difficulty: Difficulty): Promise<Generated> {
+    const key = `${size}:${difficulty}`;
+    const hit = this.cache.get(key);
+    if (hit) {
+      this.cache.delete(key);
+      return Promise.resolve(hit);
+    }
+    return this.send(size, difficulty, null);
+  }
+
+  prefetch(size: number, difficulty: Difficulty): void {
+    const key = `${size}:${difficulty}`;
+    if (this.cache.has(key)) return;
+    this.send(size, difficulty, key).catch(() => { /* prefetch failures are silent */ });
+  }
+}
