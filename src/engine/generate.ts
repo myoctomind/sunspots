@@ -1,5 +1,5 @@
 import { type Puzzle, type Solution, idx, rowOf, colOf } from './board';
-import { countSolutions } from './exact';
+import { solutions } from './exact';
 import { type Rng, randInt, shuffled } from './rng';
 
 export function sampleArrangement(size: number, rng: Rng): number[] {
@@ -48,12 +48,67 @@ export function growRegions(size: number, cols: number[], rng: Rng): number[] {
   return regions;
 }
 
+function regionStaysContiguous(size: number, regions: number[], cell: number): boolean {
+  const g = regions[cell];
+  const rest: number[] = [];
+  regions.forEach((rg, i) => { if (rg === g && i !== cell) rest.push(i); });
+  if (rest.length === 0) return false;
+  const restSet = new Set(rest);
+  const seen = new Set<number>([rest[0]]);
+  const stack = [rest[0]];
+  while (stack.length) {
+    const i = stack.pop()!;
+    const r = rowOf(size, i), c = colOf(size, i);
+    for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const nr = r + dr, nc = c + dc;
+      if (nr < 0 || nr >= size || nc < 0 || nc >= size) continue;
+      const ni = idx(size, nr, nc);
+      if (restSet.has(ni) && !seen.has(ni)) { seen.add(ni); stack.push(ni); }
+    }
+  }
+  return seen.size === rest.length;
+}
+
+export function repairToUnique(
+  size: number, cols: number[], regions: number[], rng: Rng, maxMoves = 60,
+): number[] | null {
+  for (let moves = 0; moves < maxMoves; moves++) {
+    const sols = solutions({ size, regions }, 2);
+    if (sols.length === 1) return regions;
+    const alt = sols.find((s) => s.cols.some((c, r) => c !== cols[r]))!;
+    const diffRows = shuffled(
+      rng,
+      [...Array(size).keys()].filter((r) => alt.cols[r] !== cols[r]),
+    );
+    let moved = false;
+    for (const r of diffRows) {
+      const cell = idx(size, r, alt.cols[r]);
+      if (!regionStaysContiguous(size, regions, cell)) continue;
+      const a = regions[cell];
+      const rr = rowOf(size, cell), cc = colOf(size, cell);
+      const neighborRegions: number[] = [];
+      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const nr = rr + dr, nc = cc + dc;
+        if (nr < 0 || nr >= size || nc < 0 || nc >= size) continue;
+        const b = regions[idx(size, nr, nc)];
+        if (b !== a && !neighborRegions.includes(b)) neighborRegions.push(b);
+      }
+      if (neighborRegions.length === 0) continue;
+      regions[cell] = neighborRegions[randInt(rng, neighborRegions.length)];
+      moved = true;
+      break;
+    }
+    if (!moved) return null;
+  }
+  return null;
+}
+
 export function generateCandidate(
   size: number, rng: Rng,
 ): { puzzle: Puzzle; solution: Solution } | null {
   const cols = sampleArrangement(size, rng);
   const regions = growRegions(size, cols, rng);
-  const puzzle: Puzzle = { size, regions };
-  if (countSolutions(puzzle, 2) !== 1) return null;
-  return { puzzle, solution: { cols } };
+  const repaired = repairToUnique(size, cols, regions, rng);
+  if (!repaired) return null;
+  return { puzzle: { size, regions: repaired }, solution: { cols } };
 }
