@@ -15,7 +15,7 @@ const client = new GenClient(() =>
 let settings: Settings = persistence.loadSettings();
 let stats: Stats = persistence.loadStats();
 let game: Game | null = null;
-let hint: { stage: 'nudged'; step: Step | null; mistakes: number[] } | null = null;
+let hint: { stage: 'nudged'; step: Step | null; mistakes: number[]; revealed: boolean } | null = null;
 let winRecorded = false;
 
 const board = new BoardView($('board') as unknown as SVGSVGElement, {
@@ -103,7 +103,7 @@ function render(): void {
     cells: game.cells,
     autoMarks: game.autoMarks(settings.autoX),
     conflicts: game.conflictCells(),
-    highlight: hint ? (hint.step?.locus.cells ?? hint.mistakes) : [],
+    highlight: hint ? (hint.step ? hint.step.locus.cells : (hint.revealed ? hint.mistakes : [])) : [],
     won: game.isWon(),
   });
   $('streak').textContent = String(stats.streak);
@@ -117,14 +117,14 @@ function onHint(): void {
     game.noteHint();
     const mistakes = game.mistakes();
     if (mistakes.length) {
-      hint = { stage: 'nudged', step: null, mistakes };
+      hint = { stage: 'nudged', step: null, mistakes, revealed: false };
       text.textContent = 'Something’s off — one of your marks isn’t right. Tap Hint again to see it.';
     } else {
       const st = initState(game.puzzle, game.cells, game.autoMarks(settings.autoX));
       const step = nextStep(st, 3, (g) => `the ${regionName(g)}`);
       if (!step) { text.textContent = 'No forced move found — try undoing a little.'; hint = null; }
       else {
-        hint = { stage: 'nudged', step, mistakes: [] };
+        hint = { stage: 'nudged', step, mistakes: [], revealed: false };
         const locus = step.locus;
         text.textContent =
           locus.kind === 'region' ? `Look at ${regionName(locus.index)}…`
@@ -143,6 +143,7 @@ function onHint(): void {
       text.textContent = keep;
       text.hidden = false;
     } else if (hint.mistakes.length) {
+      hint.revealed = true;
       text.textContent = 'These marks are wrong — undo or clear them.';
       renderHintHighlight();
     }
@@ -155,7 +156,7 @@ function renderHintHighlight(): void {
     cells: game.cells,
     autoMarks: game.autoMarks(settings.autoX),
     conflicts: game.conflictCells(),
-    highlight: hint ? (hint.step?.locus.cells ?? hint.mistakes) : [],
+    highlight: hint ? (hint.step ? hint.step.locus.cells : (hint.revealed ? hint.mistakes : [])) : [],
     won: game.isWon(),
   });
 }
@@ -202,7 +203,7 @@ $('autox-toggle').addEventListener('change', (e) => {
 // Keyboard (desktop nicety)
 let focusCell = 0;
 document.addEventListener('keydown', (e) => {
-  if (!game || ($('settings') as HTMLDialogElement).open) return;
+  if (!game || game.isWon() || ($('settings') as HTMLDialogElement).open) return;
   const size = game.puzzle.size;
   const r = Math.floor(focusCell / size), c = focusCell % size;
   if (e.key === 'ArrowUp' && r > 0) focusCell -= size;
