@@ -21,6 +21,7 @@ export class GenClient {
   private seedCounter = Math.floor(Math.random() * 2 ** 31);
   private pending = new Map<number, Pending>();
   private cache = new Map<string, Generated>();
+  private inflightPrefetch = new Map<string, Promise<Generated>>();
   private respawned = false;
 
   constructor(private makeWorker: () => WorkerLike) {
@@ -30,6 +31,7 @@ export class GenClient {
   private spawn(): WorkerLike {
     const w = this.makeWorker();
     w.onmessage = (e) => {
+      if (this.worker !== w) return; // stale worker: ignore
       const { id, result } = e.data as { id: number; result: Generated };
       const p = this.pending.get(id);
       if (!p) return;
@@ -38,7 +40,10 @@ export class GenClient {
       if (p.cacheKey) this.cache.set(p.cacheKey, result);
       p.resolve(result);
     };
-    w.onerror = () => this.handleCrash();
+    w.onerror = () => {
+      if (this.worker !== w) return; // late event from a terminated worker: ignore
+      this.handleCrash();
+    };
     return w;
   }
 
@@ -73,12 +78,25 @@ export class GenClient {
       this.cache.delete(key);
       return Promise.resolve(hit);
     }
+    const inflight = this.inflightPrefetch.get(key);
+    if (inflight) {
+      this.inflightPrefetch.delete(key); // claimed: a later request must go fresh
+      return inflight.then((g) => {
+        this.cache.delete(key); // the prefetch cached it on resolve; we're consuming it
+        return g;
+      });
+    }
     return this.send(size, difficulty, null);
   }
 
   prefetch(size: number, difficulty: Difficulty): void {
     const key = `${size}:${difficulty}`;
-    if (this.cache.has(key)) return;
-    this.send(size, difficulty, key).catch(() => { /* prefetch failures are silent */ });
+    if (this.cache.has(key) || this.inflightPrefetch.has(key)) return;
+    const p = this.send(size, difficulty, key);
+    this.inflightPrefetch.set(key, p);
+    const cleanup = () => {
+      if (this.inflightPrefetch.get(key) === p) this.inflightPrefetch.delete(key);
+    };
+    p.then(cleanup, cleanup); // also marks prefetch rejections handled (silent by design)
   }
 }
