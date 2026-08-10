@@ -73,6 +73,7 @@ main {
 #board .cell.conflict .cat-tail { stroke: var(--rose); }
 #board .cell.conflict .cat { animation: earflick 0.6s ease-in-out; }
 #board .cell.hint .halo { fill: var(--halo); opacity: 0.35; }
+#board .cell.kbfocus .halo { fill: var(--halo); opacity: 0.22; }
 
 @keyframes earflick {
   0%, 100% { transform: rotate(0deg); }
