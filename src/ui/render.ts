@@ -187,8 +187,10 @@ export class BoardView {
       el('path', { d: CAT_PATH, class: 'cat-body' }, cat);
       el('path', { d: TAIL_PATH, class: 'cat-tail' }, cat);
       const eyes = el('g', { class: 'eyes' }, cat);
-      el('path', { d: 'M34 37 Q41 30 48 37', class: 'eye' }, eyes);
-      el('path', { d: 'M52 37 Q59 30 66 37', class: 'eye' }, eyes);
+      el('ellipse', { cx: '41', cy: '34', rx: '6', ry: '7.5', class: 'eye-white' }, eyes);
+      el('ellipse', { cx: '59', cy: '34', rx: '6', ry: '7.5', class: 'eye-white' }, eyes);
+      el('circle', { cx: '41', cy: '35.5', r: '2.8', class: 'eye-pupil' }, eyes);
+      el('circle', { cx: '59', cy: '35.5', r: '2.8', class: 'eye-pupil' }, eyes);
       this.cellGroups.push(g);
     }
   }
