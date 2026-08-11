@@ -169,9 +169,10 @@ dialog input[type='checkbox'] { width: 22px; height: 22px; }
   70% { transform: scale(0.97, 1.05); }
 }
 
-/* Slow blink: closed happy eyes fade in and out on the silhouette */
+/* Peek: wide-open eyes fade in and out on the silhouette */
 #board .cell .eyes { opacity: 0; transition: opacity 0.7s ease-in-out; }
-#board .cell .eye { fill: none; stroke: var(--paper); stroke-width: 4.5; stroke-linecap: round; }
+#board .cell .eye-white { fill: var(--paper); }
+#board .cell .eye-pupil { fill: var(--ink); }
 #board .cell.blink .eyes { opacity: 1; }
 
 /* The winning cat does a little dance before settling into the purr */
