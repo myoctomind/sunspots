@@ -112,7 +112,7 @@ function afterChange(): void {
         celebrate();
         const lastCat = [...game.undoStack].reverse()
           .flatMap((batch) => batch.filter((m) => m.to === 'cat').map((m) => m.i))[0];
-        if (lastCat !== undefined) board.stretch(lastCat);
+        if (lastCat !== undefined) board.dance(lastCat);
       }
     } else {
       persistence.saveGame(game.toSaved());
@@ -255,10 +255,10 @@ document.addEventListener('keydown', (e) => {
 
 // A napping cat occasionally slow-blinks (opacity fade only, so no reduced-motion gate)
 setInterval(() => {
-  if (!game || Math.random() < 0.45) return;
+  if (!game || Math.random() < 0.35) return;
   const cats = game.cells.flatMap((s, i) => (s === 'cat' ? [i] : []));
   if (cats.length) board.blink(cats[Math.floor(Math.random() * cats.length)]);
-}, 18000);
+}, 12000);
 
 // Boot: resume or fresh
 const saved = persistence.loadGame();

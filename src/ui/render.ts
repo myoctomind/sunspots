@@ -201,8 +201,8 @@ export class BoardView {
     setTimeout(() => g.classList.remove(cls), ms);
   }
 
-  blink(i: number): void { this.flash(i, 'blink', 1900); }
-  stretch(i: number): void { this.flash(i, 'stretch', 1150); }
+  blink(i: number): void { this.flash(i, 'blink', 2600); }
+  dance(i: number): void { this.flash(i, 'dance', 1700); }
 
   update(s: BoardViewState): void {
     if (!this.pz) return;
