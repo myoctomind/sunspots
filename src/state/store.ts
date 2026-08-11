@@ -72,13 +72,18 @@ export class Game {
     return out;
   }
 
-  cycle(i: number, autoVisible: boolean): void {
+  /** Single tap: toggle a paw-mark; a tap on a cat clears it. */
+  tapToggle(i: number): void {
     const from = this.cells[i];
-    const to: CellState =
-      from === 'empty' ? (autoVisible ? 'cat' : 'mark')
-      : from === 'mark' ? 'cat'
-      : 'empty';
+    const to: CellState = from === 'empty' ? 'mark' : 'empty';
     this.apply([{ i, from, to }]);
+  }
+
+  /** Double tap: the cell becomes the cat, from whatever state. */
+  setCat(i: number): void {
+    const from = this.cells[i];
+    if (from === 'cat') return;
+    this.apply([{ i, from, to: 'cat' }]);
   }
 
   beginPaint(): void { this.paintBatch = []; }

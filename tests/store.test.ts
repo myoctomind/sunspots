@@ -6,27 +6,32 @@ import { fakeStorage } from './helpers';
 
 const freshGame = () => new Game(generatePuzzle(5, 'relaxed', 42));
 
-describe('cycle + auto marks', () => {
-  it('cycles empty → mark → cat → empty', () => {
+describe('tap toggle + setCat + auto marks', () => {
+  it('tap toggles paw on/off; a tap on a cat clears it', () => {
     const g = freshGame();
-    g.cycle(0, false);
+    g.tapToggle(0);
     expect(g.cells[0]).toBe('mark');
-    g.cycle(0, false);
+    g.tapToggle(0);
+    expect(g.cells[0]).toBe('empty');
+    g.setCat(0);
     expect(g.cells[0]).toBe('cat');
-    g.cycle(0, false);
+    g.tapToggle(0);
     expect(g.cells[0]).toBe('empty');
   });
 
-  it('empty cell showing an auto mark jumps straight to cat', () => {
+  it('setCat converts any state to cat and is a single undo step', () => {
     const g = freshGame();
-    g.cycle(0, true);
+    g.tapToggle(0);
+    g.setCat(0);
     expect(g.cells[0]).toBe('cat');
+    expect(g.undo()).toBe(true);
+    expect(g.cells[0]).toBe('mark');
   });
 
   it('autoMarks covers row/col/region/neighbors of cats, empty cells only', () => {
     const g = freshGame();
     const i = idx(5, 2, 2);
-    g.cycle(i, false); g.cycle(i, false); // → cat
+    g.setCat(i);
     const marks = g.autoMarks(true);
     expect(marks.has(idx(5, 2, 0))).toBe(true);
     expect(marks.has(idx(5, 0, 2))).toBe(true);
@@ -39,7 +44,7 @@ describe('cycle + auto marks', () => {
 describe('undo', () => {
   it('undoes one action at a time, drags as one batch', () => {
     const g = freshGame();
-    g.cycle(0, false); // mark
+    g.tapToggle(0); // mark
     g.beginPaint(); g.paint(5); g.paint(6); g.paint(7); g.endPaint();
     expect(g.cells[5]).toBe('mark');
     expect(g.undo()).toBe(true);
@@ -57,9 +62,7 @@ describe('win + mistakes', () => {
   it('placing the full solution wins; a wrong cat is a mistake', () => {
     const g = freshGame();
     g.solution.cols.forEach((c, r) => {
-      const i = idx(5, r, c);
-      g.cycle(i, true); // auto-visible or not, ends as cat on empty cells
-      if (g.cells[i] !== 'cat') { g.cycle(i, false); }
+      g.setCat(idx(5, r, c));
     });
     expect(g.isWon()).toBe(true);
     expect(g.mistakes()).toEqual([]);
@@ -76,7 +79,7 @@ describe('win + mistakes', () => {
 describe('save/resume round-trip', () => {
   it('restores cells, undo stack, and hint count', () => {
     const g = freshGame();
-    g.cycle(0, false);
+    g.tapToggle(0);
     g.noteHint();
     const restored = Game.fromSaved(JSON.parse(JSON.stringify(g.toSaved())));
     expect(restored.cells[0]).toBe('mark');

@@ -20,12 +20,24 @@ let hint: { stage: 'nudged' | 'revealed'; step: Step | null; mistakes: number[];
 let winRecorded = false;
 let genToken = 0;
 
+let lastTap = { i: -1, t: 0 };
+function tapCell(i: number): void {
+  if (!game || game.isWon()) return;
+  const now = Date.now();
+  if (lastTap.i === i && now - lastTap.t < 350) {
+    game.setCat(i);
+    lastTap = { i: -1, t: 0 };
+  } else {
+    game.tapToggle(i);
+    lastTap = { i, t: now };
+  }
+  afterChange();
+}
+
 const board = new BoardView($('board') as unknown as SVGSVGElement, {
   onTap(i) {
     kbFocusVisible = false;
-    if (!game || game.isWon()) return;
-    game.cycle(i, settings.autoX && game.autoMarks(true).has(i));
-    afterChange();
+    tapCell(i);
   },
   onPaintStart() { kbFocusVisible = false; if (game && !game.isWon()) game.beginPaint(); },
   onPaintCell(i) { if (game && !game.isWon()) game.paint(i); render(); },
@@ -245,7 +257,7 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'ArrowDown' && r < size - 1) focusCell += size;
   else if (e.key === 'ArrowLeft' && c > 0) focusCell -= 1;
   else if (e.key === 'ArrowRight' && c < size - 1) focusCell += 1;
-  else if (e.key === ' ') { e.preventDefault(); game.cycle(focusCell, settings.autoX && game.autoMarks(true).has(focusCell)); afterChange(); return; }
+  else if (e.key === ' ') { e.preventDefault(); tapCell(focusCell); return; }
   else if (e.key.toLowerCase() === 'x') { if (game.cells[focusCell] === 'empty') { game.beginPaint(); game.paint(focusCell); game.endPaint(); afterChange(); } return; }
   else if (e.key.toLowerCase() === 'u') { if (game.undo()) afterChange(); return; }
   else return;
