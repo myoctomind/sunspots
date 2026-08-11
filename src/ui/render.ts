@@ -1,4 +1,5 @@
 import { type CellState, type Puzzle, idx, rowOf, colOf } from '../engine/board';
+import { makeRubTracker } from './eggs';
 
 export const PALETTE = [
   '#F9D5BB', '#F7E8B0', '#CFE3C0', '#C7DFEF', '#DCCFEA',
@@ -43,6 +44,7 @@ export interface BoardCallbacks {
   onPaintStart(): void;
   onPaintCell(i: number): void;
   onPaintEnd(): void;
+  onPet(i: number, x: number, y: number): void;
 }
 
 export interface BoardViewState {
@@ -59,6 +61,19 @@ export class BoardView {
   private cellGroups: SVGGElement[] = [];
   private downCell = -1;
   private painting = false;
+  private cats = new Set<number>();
+  private petCell = -1;
+  private petFired = false;
+  private lastPet = 0;
+  private petX = 0;
+  private petY = 0;
+  private rub = makeRubTracker(() => {
+    const t = Date.now();
+    if (this.petCell < 0 || t - this.lastPet < 1200) return;
+    this.lastPet = t;
+    this.petFired = true;
+    this.cb.onPet(this.petCell, this.petX, this.petY);
+  });
 
   constructor(private svg: SVGSVGElement, private cb: BoardCallbacks) {
     svg.addEventListener('pointerdown', (e) => {
@@ -66,12 +81,25 @@ export class BoardView {
       if (i < 0) return;
       this.downCell = i;
       this.painting = false;
+      this.petFired = false;
+      if (this.cats.has(i)) { this.petCell = i; this.rub.start(e.clientX); }
+      else this.petCell = -1;
       svg.setPointerCapture(e.pointerId);
     });
     svg.addEventListener('pointermove', (e) => {
       if (this.downCell < 0) return;
       const i = this.cellAt(e);
-      if (i < 0 || i === this.downCell) return;
+      if (i < 0) return;
+      if (i === this.downCell) {
+        if (i === this.petCell) {
+          this.petX = e.clientX;
+          this.petY = e.clientY;
+          this.rub.move(e.clientX);
+        }
+        return;
+      }
+      this.petCell = -1;
+      this.rub.stop();
       if (!this.painting) {
         this.painting = true;
         this.cb.onPaintStart();
@@ -83,15 +111,19 @@ export class BoardView {
     const finish = () => {
       if (this.downCell < 0) return;
       if (this.painting) this.cb.onPaintEnd();
-      else this.cb.onTap(this.downCell);
+      else if (!this.petFired) this.cb.onTap(this.downCell);
       this.downCell = -1;
       this.painting = false;
+      this.petCell = -1;
+      this.rub.stop();
     };
     svg.addEventListener('pointerup', finish);
     svg.addEventListener('pointercancel', () => {
       if (this.painting) this.cb.onPaintEnd();
       this.downCell = -1;
       this.painting = false;
+      this.petCell = -1;
+      this.rub.stop();
     });
   }
 
@@ -154,12 +186,27 @@ export class BoardView {
       const cat = el('g', { class: 'cat' }, g);
       el('path', { d: CAT_PATH, class: 'cat-body' }, cat);
       el('path', { d: TAIL_PATH, class: 'cat-tail' }, cat);
+      const eyes = el('g', { class: 'eyes' }, cat);
+      el('path', { d: 'M34 37 Q41 30 48 37', class: 'eye' }, eyes);
+      el('path', { d: 'M52 37 Q59 30 66 37', class: 'eye' }, eyes);
       this.cellGroups.push(g);
     }
   }
 
+  /** Briefly toggle an effect class on one cell (slow blink, win stretch). */
+  private flash(i: number, cls: string, ms: number): void {
+    const g = this.cellGroups[i];
+    if (!g) return;
+    g.classList.add(cls);
+    setTimeout(() => g.classList.remove(cls), ms);
+  }
+
+  blink(i: number): void { this.flash(i, 'blink', 1900); }
+  stretch(i: number): void { this.flash(i, 'stretch', 1150); }
+
   update(s: BoardViewState): void {
     if (!this.pz) return;
+    this.cats = new Set(s.cells.flatMap((st, i) => (st === 'cat' ? [i] : [])));
     const conflictSet = new Set(s.conflicts);
     const highlightSet = new Set(s.highlight);
     this.cellGroups.forEach((g, i) => {

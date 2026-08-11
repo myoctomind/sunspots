@@ -5,6 +5,7 @@ import { initState, nextStep, type Step } from '../engine/deduce';
 import { Game, persistence, type Settings, type Stats } from '../state/store';
 import { GenClient, type WorkerLike } from './genClient';
 import { BoardView, regionName } from './render';
+import { winCopy, winDrop } from './eggs';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 
@@ -29,6 +30,19 @@ const board = new BoardView($('board') as unknown as SVGSVGElement, {
   onPaintStart() { kbFocusVisible = false; if (game && !game.isWon()) game.beginPaint(); },
   onPaintCell(i) { if (game && !game.isWon()) game.paint(i); render(); },
   onPaintEnd() { if (game) { game.endPaint(); afterChange(); } },
+  onPet(_i, x, y) {
+    if (!game || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    for (let k = 0; k < 3; k++) {
+      const h = document.createElement('div');
+      h.className = 'heart';
+      h.textContent = '💗';
+      h.style.left = `${x + (k - 1) * 14 + (Math.random() * 8 - 4)}px`;
+      h.style.top = `${y - 12}px`;
+      h.style.animationDelay = `${k * 0.09}s`;
+      document.body.appendChild(h);
+      setTimeout(() => h.remove(), 1500);
+    }
+  },
 });
 
 function toast(msg: string): void {
@@ -40,13 +54,14 @@ function toast(msg: string): void {
 }
 
 function celebrate(): void {
-  toast(game && game.hintsUsed === 0 ? 'Clean solve — every cat in its sunspot ☀︎' : 'Every cat in its sunspot ☀︎');
+  const day = new Date().getDay();
+  toast(winCopy(game !== null && game.hintsUsed === 0, day));
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const n = 8;
   for (let k = 0; k < n; k++) {
     const y = document.createElement('div');
     y.className = 'yarn';
-    y.textContent = '🧶';
+    y.textContent = winDrop(day);
     y.style.left = `${8 + Math.random() * 84}%`;
     y.style.animationDelay = `${Math.random() * 0.8}s`;
     y.style.fontSize = `${1 + Math.random() * 0.8}rem`;
@@ -95,6 +110,9 @@ function afterChange(): void {
         persistence.saveStats(stats);
         persistence.clearGame();
         celebrate();
+        const lastCat = [...game.undoStack].reverse()
+          .flatMap((batch) => batch.filter((m) => m.to === 'cat').map((m) => m.i))[0];
+        if (lastCat !== undefined) board.stretch(lastCat);
       }
     } else {
       persistence.saveGame(game.toSaved());
@@ -234,6 +252,13 @@ document.addEventListener('keydown', (e) => {
   hint = null; $('hint-text').hidden = true;
   render();
 });
+
+// A napping cat occasionally slow-blinks (opacity fade only, so no reduced-motion gate)
+setInterval(() => {
+  if (!game || Math.random() < 0.45) return;
+  const cats = game.cells.flatMap((s, i) => (s === 'cat' ? [i] : []));
+  if (cats.length) board.blink(cats[Math.floor(Math.random() * cats.length)]);
+}, 18000);
 
 // Boot: resume or fresh
 const saved = persistence.loadGame();
