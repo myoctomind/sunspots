@@ -45,7 +45,7 @@ describe('undo', () => {
   it('undoes one action at a time, drags as one batch', () => {
     const g = freshGame();
     g.tapToggle(0); // mark
-    g.beginPaint(); g.paint(5); g.paint(6); g.paint(7); g.endPaint();
+    g.beginPaint(5); g.paint(5); g.paint(6); g.paint(7); g.endPaint();
     expect(g.cells[5]).toBe('mark');
     expect(g.undo()).toBe(true);
     expect(g.cells[5]).toBe('empty');
@@ -54,6 +54,84 @@ describe('undo', () => {
     expect(g.cells[0]).toBe('mark');
     expect(g.undo()).toBe(true);
     expect(g.cells[0]).toBe('empty');
+    expect(g.undo()).toBe(false);
+  });
+});
+
+describe('swipe mode', () => {
+  it('a swipe starting on a paw-mark erases marks along the way', () => {
+    const g = freshGame();
+    g.tapToggle(5); g.tapToggle(6); g.tapToggle(7);
+    g.beginPaint(5); g.paint(5); g.paint(6); g.paint(7); g.endPaint();
+    expect(g.cells.slice(5, 8)).toEqual(['empty', 'empty', 'empty']);
+  });
+
+  it('an erase swipe leaves cats and empty cells untouched', () => {
+    const g = freshGame();
+    g.tapToggle(5);
+    g.setCat(6);
+    // 7 stays empty
+    g.beginPaint(5); g.paint(5); g.paint(6); g.paint(7); g.endPaint();
+    expect(g.cells[5]).toBe('empty');
+    expect(g.cells[6]).toBe('cat');
+    expect(g.cells[7]).toBe('empty');
+  });
+
+  it('an erase swipe is a single undo step', () => {
+    const g = freshGame();
+    g.tapToggle(5); g.tapToggle(6);
+    g.beginPaint(5); g.paint(5); g.paint(6); g.endPaint();
+    expect(g.undo()).toBe(true);
+    expect(g.cells[5]).toBe('mark');
+    expect(g.cells[6]).toBe('mark');
+  });
+
+  it('a swipe starting on an empty cell still adds marks', () => {
+    const g = freshGame();
+    g.tapToggle(6);
+    g.beginPaint(5); g.paint(5); g.paint(6); g.paint(7); g.endPaint();
+    expect(g.cells.slice(5, 8)).toEqual(['mark', 'mark', 'mark']);
+  });
+
+  it('a swipe starting on a cat adds marks and does not clear the cat', () => {
+    const g = freshGame();
+    g.setCat(5);
+    g.beginPaint(5); g.paint(5); g.paint(6); g.endPaint();
+    expect(g.cells[5]).toBe('cat');
+    expect(g.cells[6]).toBe('mark');
+  });
+});
+
+describe('reset board', () => {
+  it('clears every mark and cat but keeps the puzzle', () => {
+    const g = freshGame();
+    const regions = g.puzzle.regions.slice();
+    g.tapToggle(0); g.setCat(7); g.tapToggle(12);
+    expect(g.resetBoard()).toBe(true);
+    expect(g.cells.every((c) => c === 'empty')).toBe(true);
+    expect(g.puzzle.regions).toEqual(regions);
+  });
+
+  it('is undoable in a single step', () => {
+    const g = freshGame();
+    g.tapToggle(0); g.setCat(7);
+    g.resetBoard();
+    expect(g.undo()).toBe(true);
+    expect(g.cells[0]).toBe('mark');
+    expect(g.cells[7]).toBe('cat');
+  });
+
+  it('preserves hintsUsed, so a reset cannot launder a clean solve', () => {
+    const g = freshGame();
+    g.noteHint();
+    g.tapToggle(0);
+    g.resetBoard();
+    expect(g.hintsUsed).toBe(1);
+  });
+
+  it('does nothing on an already-empty board', () => {
+    const g = freshGame();
+    expect(g.resetBoard()).toBe(false);
     expect(g.undo()).toBe(false);
   });
 });

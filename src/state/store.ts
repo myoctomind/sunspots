@@ -26,6 +26,7 @@ export class Game {
   undoStack: Move[][] = [];
   hintsUsed = 0;
   private paintBatch: Move[] | null = null;
+  private paintMode: 'add' | 'erase' = 'add';
 
   constructor(g: Generated) {
     this.puzzle = g.puzzle;
@@ -86,13 +87,19 @@ export class Game {
     this.apply([{ i, from, to: 'cat' }]);
   }
 
-  beginPaint(): void { this.paintBatch = []; }
+  /** The first cell of a swipe decides the mode: start on a paw-mark and the swipe erases. */
+  beginPaint(i: number): void {
+    this.paintBatch = [];
+    this.paintMode = this.cells[i] === 'mark' ? 'erase' : 'add';
+  }
 
   paint(i: number): void {
-    if (this.cells[i] !== 'empty') return;
-    const move: Move = { i, from: 'empty', to: 'mark' };
+    const from: CellState = this.paintMode === 'erase' ? 'mark' : 'empty';
+    if (this.cells[i] !== from) return;
+    const to: CellState = this.paintMode === 'erase' ? 'empty' : 'mark';
+    const move: Move = { i, from, to };
     if (this.paintBatch) {
-      this.cells[i] = 'mark';
+      this.cells[i] = to;
       this.paintBatch.push(move);
     } else {
       this.apply([move]);
@@ -102,6 +109,16 @@ export class Game {
   endPaint(): void {
     if (this.paintBatch && this.paintBatch.length) this.undoStack.push(this.paintBatch);
     this.paintBatch = null;
+    this.paintMode = 'add';
+  }
+
+  /** Clear the board back to blank, keeping the puzzle. One undo step; hints already spent still count. */
+  resetBoard(): boolean {
+    const moves: Move[] = this.cells.flatMap((from, i) =>
+      from === 'empty' ? [] : [{ i, from, to: 'empty' as CellState }]);
+    if (!moves.length) return false;
+    this.apply(moves);
+    return true;
   }
 
   undo(): boolean {
