@@ -5,7 +5,7 @@ import { initState, nextStep, type Step } from '../engine/deduce';
 import { Game, persistence, type Settings, type Stats } from '../state/store';
 import { GenClient, type WorkerLike } from './genClient';
 import { BoardView, regionName } from './render';
-import { winCopy, winDrop } from './eggs';
+import { winCopy, winDrop, makeTapStreak } from './eggs';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 
@@ -82,6 +82,38 @@ function celebrate(): void {
   }
 }
 
+/**
+ * Sun nap: on a solved board, five fast taps on the title turns it into a sun
+ * and curls every cat up to sleep. After two seconds, a tap anywhere wakes them.
+ */
+const TITLE_TEXT = $('title').textContent ?? 'Sunspots';
+let napping = false;
+let napTimer = 0;
+
+function startNap(): void {
+  napping = true;
+  $('title').textContent = '☀︎';
+  $('title').classList.add('napping');
+  board.setNapping(true);
+  napTimer = window.setTimeout(() => document.addEventListener('pointerdown', endNap), 2000);
+}
+
+function endNap(): void {
+  if (!napping) return;
+  napping = false;
+  clearTimeout(napTimer);
+  document.removeEventListener('pointerdown', endNap);
+  $('title').textContent = TITLE_TEXT;
+  $('title').classList.remove('napping');
+  board.setNapping(false);
+  titleTaps.reset();
+}
+
+const titleTaps = makeTapStreak(5, 600, () => {
+  if (game?.isWon() && !napping) startNap();
+});
+$('title').addEventListener('click', () => titleTaps.tap(Date.now()));
+
 function fiendishAllowed(size: number): boolean { return size >= 7; }
 
 function requestedDifficulty(): Difficulty {
@@ -90,6 +122,7 @@ function requestedDifficulty(): Difficulty {
 }
 
 async function newGame(): Promise<void> {
+  endNap();
   const token = ++genToken;
   $('new-btn').setAttribute('disabled', '');
   try {
