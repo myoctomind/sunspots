@@ -38,6 +38,8 @@ const CAT_PATH =
   'C44 19.5 47 19 50 19 C53 19 56 19.5 59 21 L71 11 L67 28 ' +
   'C74 33 81.5 42 83 55 C85 73 74 88 50 88 Z';
 const TAIL_PATH = 'M82 62 C95 64 96 79 85 84';
+// Tail wrapped around a curled, sleeping cat.
+const CURL_TAIL = 'M84 60 C97 76 86 91 58 85';
 
 export interface BoardCallbacks {
   onTap(i: number): void;
@@ -193,6 +195,14 @@ export class BoardView {
       el('ellipse', { cx: '59', cy: '34', rx: '6', ry: '7.5', class: 'eye-white' }, eyes);
       el('circle', { cx: '41', cy: '35.5', r: '2.8', class: 'eye-pupil' }, eyes);
       el('circle', { cx: '59', cy: '35.5', r: '2.8', class: 'eye-pupil' }, eyes);
+      // The napping form, built up front and swapped in by CSS during the sun-nap egg.
+      const curled = el('g', { class: 'cat-curled' }, g);
+      el('ellipse', { cx: '54', cy: '65', rx: '32', ry: '23', class: 'cat-body' }, curled);
+      el('path', { d: CURL_TAIL, class: 'cat-tail' }, curled);
+      el('path', { d: 'M14 46 L12 28 L27 39 Z', class: 'cat-body' }, curled);
+      el('path', { d: 'M33 39 L45 27 L45 44 Z', class: 'cat-body' }, curled);
+      el('circle', { cx: '29', cy: '56', r: '17', class: 'cat-body' }, curled);
+      el('path', { d: 'M22 57 q7 7 14 0', class: 'sleep-eye' }, curled);
       this.cellGroups.push(g);
     }
   }
@@ -207,6 +217,9 @@ export class BoardView {
 
   blink(i: number): void { this.flash(i, 'blink', 2600); }
   dance(i: number): void { this.flash(i, 'dance', 1700); }
+
+  /** Sun-nap egg: swap every cat for its curled sleeping form. Purely presentational. */
+  setNapping(on: boolean): void { this.svg.classList.toggle('napping', on); }
 
   update(s: BoardViewState): void {
     if (!this.pz) return;

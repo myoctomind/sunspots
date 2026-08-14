@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { winCopy, winDrop, makeRubTracker } from '../src/ui/eggs';
+import { winCopy, winDrop, makeRubTracker, makeTapStreak } from '../src/ui/eggs';
 
 describe('caturday', () => {
   it('saturday swaps the toast copy and the drop emoji', () => {
@@ -36,5 +36,48 @@ describe('rub tracker', () => {
     t.stop();
     for (const x of [10, 2, 12, 3]) t.move(x);
     expect(fires).toBe(0);
+  });
+});
+
+describe('tap streak', () => {
+  const streakOf = () => {
+    let fired = 0;
+    return { s: makeTapStreak(5, 600, () => fired++), fired: () => fired };
+  };
+
+  it('fires on the fifth tap inside the window', () => {
+    const { s, fired } = streakOf();
+    [0, 100, 200, 300, 400].forEach((t) => s.tap(t));
+    expect(fired()).toBe(1);
+  });
+
+  it('does not fire on four taps', () => {
+    const { s, fired } = streakOf();
+    [0, 100, 200, 300].forEach((t) => s.tap(t));
+    expect(fired()).toBe(0);
+  });
+
+  it('a gap longer than the window restarts the count', () => {
+    const { s, fired } = streakOf();
+    [0, 100, 200, 300].forEach((t) => s.tap(t));
+    s.tap(1500);                       // too slow — this is tap 1 of a new run
+    expect(fired()).toBe(0);
+    [1600, 1700, 1800, 1900].forEach((t) => s.tap(t));
+    expect(fired()).toBe(1);
+  });
+
+  it('re-arms cleanly for a second run', () => {
+    const { s, fired } = streakOf();
+    [0, 100, 200, 300, 400].forEach((t) => s.tap(t));
+    [500, 600, 700, 800, 900].forEach((t) => s.tap(t));
+    expect(fired()).toBe(2);
+  });
+
+  it('reset() abandons a run in progress', () => {
+    const { s, fired } = streakOf();
+    [0, 100, 200, 300].forEach((t) => s.tap(t));
+    s.reset();
+    s.tap(400);
+    expect(fired()).toBe(0);
   });
 });
