@@ -39,7 +39,7 @@ const board = new BoardView($('board') as unknown as SVGSVGElement, {
     kbFocusVisible = false;
     tapCell(i);
   },
-  onPaintStart() { kbFocusVisible = false; if (game && !game.isWon()) game.beginPaint(); },
+  onPaintStart(i) { kbFocusVisible = false; if (game && !game.isWon()) game.beginPaint(i); },
   onPaintCell(i) { if (game && !game.isWon()) game.paint(i); render(); },
   onPaintEnd() { if (game) { game.endPaint(); afterChange(); } },
   onPet(_i, x, y) {
@@ -145,9 +145,26 @@ function render(): void {
   });
   $('streak').textContent = String(stats.streak);
   ($('undo-btn') as HTMLButtonElement).disabled = game.undoStack.length === 0 || game.isWon();
+  $('reset-row').classList.toggle('gone', game.isWon());
 }
 
+/**
+ * The first hint of a game forfeits the clean solve, and with it the streak.
+ * Warn once, and only when there's actually a streak on the line.
+ */
 function onHint(): void {
+  if (!game || game.isWon()) return;
+  if (game.hintsUsed === 0 && stats.streak > 0) {
+    $('hint-confirm-text').innerHTML =
+      `This solve won’t count as clean — your ☀︎ streak of ` +
+      `<span class="streak-count">${stats.streak}</span> goes back to zero.`;
+    ($('hint-confirm') as HTMLDialogElement).showModal();
+    return;
+  }
+  giveHint();
+}
+
+function giveHint(): void {
   if (!game || game.isWon()) return;
   const text = $('hint-text');
   if (!hint || hint.stage === 'revealed') {
@@ -228,6 +245,13 @@ function refreshSettingsUI(): void {
 $('undo-btn').addEventListener('click', () => { if (game?.undo()) afterChange(); });
 $('hint-btn').addEventListener('click', onHint);
 $('new-btn').addEventListener('click', () => void newGame());
+$('hint-accept').addEventListener('click', () => {
+  ($('hint-confirm') as HTMLDialogElement).close();
+  giveHint();
+});
+$('hint-cancel').addEventListener('click', () => ($('hint-confirm') as HTMLDialogElement).close());
+// Undoable in one step, which is why it needs no confirmation of its own.
+$('reset-link').addEventListener('click', () => { if (game?.resetBoard()) afterChange(); });
 $('settings-btn').addEventListener('click', () => { refreshSettingsUI(); ($('settings') as HTMLDialogElement).showModal(); });
 $('stats-chip').addEventListener('click', () => { refreshSettingsUI(); ($('settings') as HTMLDialogElement).showModal(); });
 $('settings-close').addEventListener('click', () => ($('settings') as HTMLDialogElement).close());
@@ -248,7 +272,8 @@ $('autox-toggle').addEventListener('change', (e) => {
 let focusCell = 0;
 let kbFocusVisible = false;
 document.addEventListener('keydown', (e) => {
-  if (!game || game.isWon() || ($('settings') as HTMLDialogElement).open) return;
+  if (!game || game.isWon()) return;
+  if (($('settings') as HTMLDialogElement).open || ($('hint-confirm') as HTMLDialogElement).open) return;
   if (focusCell >= game.puzzle.size * game.puzzle.size) focusCell = 0;
   const size = game.puzzle.size;
   const r = Math.floor(focusCell / size), c = focusCell % size;
@@ -258,7 +283,7 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'ArrowLeft' && c > 0) focusCell -= 1;
   else if (e.key === 'ArrowRight' && c < size - 1) focusCell += 1;
   else if (e.key === ' ') { e.preventDefault(); tapCell(focusCell); return; }
-  else if (e.key.toLowerCase() === 'x') { if (game.cells[focusCell] === 'empty') { game.beginPaint(); game.paint(focusCell); game.endPaint(); afterChange(); } return; }
+  else if (e.key.toLowerCase() === 'x') { if (game.cells[focusCell] === 'empty') { game.beginPaint(focusCell); game.paint(focusCell); game.endPaint(); afterChange(); } return; }
   else if (e.key.toLowerCase() === 'u') { if (game.undo()) afterChange(); return; }
   else return;
   hint = null; $('hint-text').hidden = true;

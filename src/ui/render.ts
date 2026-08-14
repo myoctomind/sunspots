@@ -41,7 +41,8 @@ const TAIL_PATH = 'M82 62 C95 64 96 79 85 84';
 
 export interface BoardCallbacks {
   onTap(i: number): void;
-  onPaintStart(): void;
+  /** `i` is the cell the swipe began on — it decides whether the swipe adds or erases. */
+  onPaintStart(i: number): void;
   onPaintCell(i: number): void;
   onPaintEnd(): void;
   onPet(i: number, x: number, y: number): void;
@@ -102,7 +103,8 @@ export class BoardView {
       this.rub.stop();
       if (!this.painting) {
         this.painting = true;
-        this.cb.onPaintStart();
+        // downCell is still the cell the finger went down on — it sets add-vs-erase.
+        this.cb.onPaintStart(this.downCell);
         this.cb.onPaintCell(this.downCell);
       }
       this.cb.onPaintCell(i);

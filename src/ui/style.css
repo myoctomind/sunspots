@@ -108,6 +108,46 @@ main {
 }
 #bottom-bar button:disabled { opacity: 0.4; }
 
+/* A link, not a fourth button: quiet underlined text under the bar. */
+.linkish {
+  font: inherit;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  padding: 0.25rem 0.5rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  opacity: 0.65;
+  cursor: pointer;
+}
+.linkish:hover, .linkish:focus-visible { opacity: 1; }
+#reset-row {
+  text-align: center;
+  font-size: 0.95rem;
+  padding: 0 1rem calc(0.5rem + env(safe-area-inset-bottom));
+  margin-top: -0.5rem;
+}
+/* Keeps its space when hidden, so winning doesn't shove the board mid-celebration. */
+#reset-row.gone { visibility: hidden; }
+
+.dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+#hint-accept {
+  font: inherit;
+  min-height: 44px;
+  color: var(--ink);
+  background: #fff8;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  padding: 0.4rem 1.2rem;
+}
+#hint-confirm-text .streak-count { font-weight: 700; }
+
 dialog {
   margin: auto;
   border: 2px solid var(--ink);
