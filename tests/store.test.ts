@@ -167,13 +167,23 @@ describe('save/resume round-trip', () => {
   });
 });
 
+describe('settings written before dark mode existed', () => {
+  it('load with Sun set to auto rather than undefined', () => {
+    const s = fakeStorage();
+    s.setItem('sunspots.settings', JSON.stringify({ size: 6, difficulty: 'relaxed', autoX: false }));
+    expect(persistence.loadSettings(s))
+      .toEqual({ size: 6, difficulty: 'relaxed', autoX: false, theme: 'auto' });
+  });
+});
+
 describe('persistence', () => {
   it('settings/stats/game round-trip through storage, tolerate absence', () => {
     const s = fakeStorage();
-    const settings: Settings = { size: 8, difficulty: 'fiendish', autoX: false };
+    const settings: Settings = { size: 8, difficulty: 'fiendish', autoX: false, theme: 'down' };
     persistence.saveSettings(settings, s);
     expect(persistence.loadSettings(s)).toEqual(settings);
-    expect(persistence.loadSettings(fakeStorage())).toEqual({ size: 9, difficulty: 'thinky', autoX: true });
+    expect(persistence.loadSettings(fakeStorage()))
+      .toEqual({ size: 9, difficulty: 'thinky', autoX: true, theme: 'auto' });
 
     let stats: Stats = persistence.loadStats(s);
     stats = persistence.recordWin(stats, 5, 'relaxed', true);

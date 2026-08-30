@@ -4,8 +4,9 @@ import {
 } from '../engine/board';
 import { type Generated } from '../engine/generate';
 import { type Step, findMistakes } from '../engine/deduce';
+import { type ThemeSetting } from '../ui/theme';
 
-export interface Settings { size: number; difficulty: Difficulty; autoX: boolean }
+export interface Settings { size: number; difficulty: Difficulty; autoX: boolean; theme: ThemeSetting }
 export interface Stats {
   counts: Record<string, { solved: number; clean: number }>;
   streak: number;
@@ -146,7 +147,7 @@ export class Game {
 }
 
 const KEYS = { settings: 'sunspots.settings', stats: 'sunspots.stats', game: 'sunspots.game' } as const;
-const DEFAULT_SETTINGS: Settings = { size: 9, difficulty: 'thinky', autoX: true };
+const DEFAULT_SETTINGS: Settings = { size: 9, difficulty: 'thinky', autoX: true, theme: 'auto' };
 const DEFAULT_STATS: Stats = { counts: {}, streak: 0, bestStreak: 0 };
 
 function storageOr(s?: Storage): Storage | null {
