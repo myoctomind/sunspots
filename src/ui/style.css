@@ -4,6 +4,57 @@
   --ink-soft: #3E3A3620;
   --rose: #E4A0AE;
   --halo: #F2B75C;
+  --cat: #3E3A36;
+  --cat-detail: #FAF3E7;
+  --eye-white: #FAF3E7;
+  --eye-pupil: #3E3A36;
+  --btn-bg: #fff8;
+  --backdrop: #3E3A3644;
+  --border-w: 7;
+  /* Sun patches, in region order: peach butter sage sky lilac rose mint sand periwinkle */
+  --p0: #F9D5BB; --p1: #F7E8B0; --p2: #CFE3C0; --p3: #C7DFEF; --p4: #DCCFEA;
+  --p5: #F5CDD7; --p6: #C9E8DD; --p7: #EAD9C2; --p8: #CBD3F0;
+  /* Faces are a dark-mode affordance: at dusk a bare silhouette loses definition */
+  --face-vis: hidden;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #16130F;
+    --ink: #BFB7AC;
+    --ink-soft: #BFB7AC1F;
+    --rose: #E4879B;
+    --halo: #F5C97A;
+    --cat: #A7A099;
+    --cat-detail: #16130F;
+    --eye-white: #EDE7DD;
+    --eye-pupil: #16130F;
+    --btn-bg: #FFFFFF0D;
+    --backdrop: #0B0907AA;
+    /* Light-on-dark strokes bloom, so the same weight needs fewer pixels to read the same */
+    --border-w: 5;
+    --p0: #7B4530; --p1: #6D5C27; --p2: #445C39; --p3: #2C4C66; --p4: #4C3E68;
+    --p5: #6E3549; --p6: #275A4E; --p7: #5F4B34; --p8: #38406E;
+    --face-vis: visible;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #16130F;
+  --ink: #BFB7AC;
+  --ink-soft: #BFB7AC1F;
+  --rose: #E4879B;
+  --halo: #F5C97A;
+  --cat: #A7A099;
+  --cat-detail: #16130F;
+  --eye-white: #EDE7DD;
+  --eye-pupil: #16130F;
+  --btn-bg: #FFFFFF0D;
+  --backdrop: #0B0907AA;
+  /* Light-on-dark strokes bloom, so the same weight needs fewer pixels to read the same */
+  --border-w: 5;
+  --p0: #7B4530; --p1: #6D5C27; --p2: #445C39; --p3: #2C4C66; --p4: #4C3E68;
+  --p5: #6E3549; --p6: #275A4E; --p7: #5F4B34; --p8: #38406E;
+  --face-vis: visible;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -60,15 +111,15 @@ main {
 }
 
 #board .grid { stroke: var(--ink-soft); stroke-width: 1.5; }
-#board .border { stroke: var(--ink); stroke-width: 7; stroke-linecap: round; }
+#board .border { stroke: var(--ink); stroke-width: var(--border-w); stroke-linecap: round; }
 #board .halo { fill: transparent; }
 #board .cell .paw, #board .cell .cat { visibility: hidden; }
-#board .cell .pad { fill: var(--ink); opacity: 0.55; }
+#board .cell .pad { fill: var(--cat); opacity: 0.55; }
 #board .cell.auto .pad { opacity: 0.28; }
 #board .cell.has-paw .paw { visibility: visible; }
 #board .cell.has-cat .cat { visibility: visible; }
-#board .cat-body { fill: var(--ink); }
-#board .cat-tail { fill: none; stroke: var(--ink); stroke-width: 7; stroke-linecap: round; }
+#board .cat-body { fill: var(--cat); }
+#board .cat-tail { fill: none; stroke: var(--cat); stroke-width: 7; stroke-linecap: round; }
 #board .cell.conflict .cat-body { fill: var(--rose); }
 #board .cell.conflict .cat-tail { stroke: var(--rose); }
 #board .cell.conflict .cat { animation: earflick 0.6s ease-in-out; }
@@ -102,7 +153,7 @@ main {
   font: inherit;
   font-size: 1.05rem;
   color: var(--ink);
-  background: #fff8;
+  background: var(--btn-bg);
   border: 2px solid var(--ink);
   border-radius: 16px;
 }
@@ -141,7 +192,7 @@ main {
   font: inherit;
   min-height: 44px;
   color: var(--ink);
-  background: #fff8;
+  background: var(--btn-bg);
   border: 2px solid var(--ink);
   border-radius: 12px;
   padding: 0.4rem 1.2rem;
@@ -160,7 +211,7 @@ dialog {
   inset: 0;
 }
 dialog:not([open]) { display: none; }
-dialog::backdrop { background: #3E3A3644; }
+dialog::backdrop { background: var(--backdrop); }
 dialog h2 { margin-bottom: 0.75rem; }
 dialog label { display: block; margin: 0.6rem 0; font-size: 1rem; }
 dialog select { font: inherit; padding: 0.3rem 0.5rem; margin-left: 0.5rem; }
@@ -211,8 +262,8 @@ dialog input[type='checkbox'] { width: 22px; height: 22px; }
 
 /* Peek: wide-open eyes fade in and out on the silhouette */
 #board .cell .eyes { opacity: 0; transition: opacity 0.7s ease-in-out; }
-#board .cell .eye-white { fill: var(--paper); }
-#board .cell .eye-pupil { fill: var(--ink); }
+#board .cell .eye-white { fill: var(--eye-white); }
+#board .cell .eye-pupil { fill: var(--eye-pupil); }
 #board .cell.blink .eyes { opacity: 1; }
 
 /* The winning cat does a little dance before settling into the purr */
@@ -252,7 +303,7 @@ dialog input[type='checkbox'] { width: 22px; height: 22px; }
 #board .cell .cat-curled { visibility: hidden; opacity: 0; }
 #board .cell .sleep-eye {
   fill: none;
-  stroke: var(--paper);
+  stroke: var(--cat-detail);
   stroke-width: 3.5;
   stroke-linecap: round;
 }
@@ -266,4 +317,34 @@ header h1.napping { font-size: 2.7rem; line-height: 1; }
 @media (prefers-reduced-motion: reduce) {
   #board .cell.has-cat .cat, #board .cell .cat-curled { transition: none; }
   header h1 { transition: none; }
+}
+
+/* Sun patches are painted by class so a theme swap is a repaint, not a re-render */
+#board .patch.p0 { fill: var(--p0); }
+#board .patch.p1 { fill: var(--p1); }
+#board .patch.p2 { fill: var(--p2); }
+#board .patch.p3 { fill: var(--p3); }
+#board .patch.p4 { fill: var(--p4); }
+#board .patch.p5 { fill: var(--p5); }
+#board .patch.p6 { fill: var(--p6); }
+#board .patch.p7 { fill: var(--p7); }
+#board .patch.p8 { fill: var(--p8); }
+
+/* Sleepy face — dark mode only, and it steps aside for the peek egg's wide-open eyes */
+/* visibility:visible on a child overrides the hidden .cat parent, so this must be
+   scoped to cells that actually hold a cat — otherwise paw-marks grow faces. */
+#board .cell .face { visibility: hidden; transition: opacity 0.7s ease-in-out; }
+#board .cell.has-cat .face { visibility: var(--face-vis); }
+#board .cell.blink .face { opacity: 0; }
+#board .cell .lid {
+  fill: none;
+  stroke: var(--cat-detail);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+}
+#board .cell .nose { fill: var(--cat-detail); }
+#board.napping .cell .face { visibility: hidden; }
+
+@media (prefers-reduced-motion: reduce) {
+  #board .cell .face { transition: none; }
 }

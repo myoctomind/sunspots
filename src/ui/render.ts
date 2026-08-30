@@ -1,10 +1,6 @@
 import { type CellState, type Puzzle, idx, rowOf, colOf } from '../engine/board';
 import { makeRubTracker } from './eggs';
 
-export const PALETTE = [
-  '#F9D5BB', '#F7E8B0', '#CFE3C0', '#C7DFEF', '#DCCFEA',
-  '#F5CDD7', '#C9E8DD', '#EAD9C2', '#CBD3F0',
-];
 export const REGION_NAMES = [
   'peach', 'butter', 'sage', 'sky', 'lilac', 'rose', 'mint', 'sand', 'periwinkle',
 ];
@@ -160,7 +156,7 @@ export class BoardView {
       el('rect', {
         x: String(colOf(size, i) * CELL), y: String(rowOf(size, i) * CELL),
         width: String(CELL), height: String(CELL),
-        fill: PALETTE[regions[i] % 9],
+        class: `patch p${regions[i] % 9}`,
       }, svg);
     }
     // Inner grid (subtle)
@@ -195,6 +191,10 @@ export class BoardView {
       el('ellipse', { cx: '59', cy: '34', rx: '6', ry: '7.5', class: 'eye-white' }, eyes);
       el('circle', { cx: '41', cy: '35.5', r: '2.8', class: 'eye-pupil' }, eyes);
       el('circle', { cx: '59', cy: '35.5', r: '2.8', class: 'eye-pupil' }, eyes);
+      const face = el('g', { class: 'face' }, cat);
+      el('path', { d: 'M35 33 q6 6 12 0', class: 'lid' }, face);
+      el('path', { d: 'M53 33 q6 6 12 0', class: 'lid' }, face);
+      el('path', { d: 'M46 43 L54 43 L50 49 Z', class: 'nose' }, face);
       // The napping form, built up front and swapped in by CSS during the sun-nap egg.
       const curled = el('g', { class: 'cat-curled' }, g);
       el('ellipse', { cx: '54', cy: '65', rx: '32', ry: '23', class: 'cat-body' }, curled);

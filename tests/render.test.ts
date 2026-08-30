@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { borderSegments, PALETTE, REGION_NAMES, regionName } from '../src/ui/render';
+import css from '../src/ui/style.css?raw';
+import { borderSegments, REGION_NAMES, regionName } from '../src/ui/render';
 import { HAND5, rowRegions } from './helpers';
 import { idx } from '../src/engine/board';
 
@@ -25,10 +26,16 @@ describe('borderSegments', () => {
 });
 
 describe('palette', () => {
-  it('has 9 fills and 9 names', () => {
-    expect(PALETTE).toHaveLength(9);
+  it('has 9 names', () => {
     expect(REGION_NAMES).toHaveLength(9);
     expect(regionName(0)).toBe('peach patch');
     expect(regionName(9)).toBe('peach patch'); // wraps
+  });
+
+  it('every patch fill is defined in all three theme blocks', () => {
+    // light :root, the prefers-dark media block, and the explicit [data-theme="dark"] block
+    for (let i = 0; i < 9; i++) {
+      expect(css.match(new RegExp(`--p${i}:`, 'g')) ?? []).toHaveLength(3);
+    }
   });
 });

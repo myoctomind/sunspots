@@ -6,6 +6,7 @@ import { Game, persistence, type Settings, type Stats } from '../state/store';
 import { GenClient, type WorkerLike } from './genClient';
 import { BoardView, regionName } from './render';
 import { winCopy, winDrop, makeTapStreak } from './eggs';
+import { resolveTheme, type ThemeSetting } from './theme';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 
@@ -19,6 +20,24 @@ let game: Game | null = null;
 let hint: { stage: 'nudged' | 'revealed'; step: Step | null; mistakes: number[]; revealed: boolean } | null = null;
 let winRecorded = false;
 let genToken = 0;
+
+/**
+ * Sun: Up and Down stamp an explicit choice on <html>; Auto stamps nothing and
+ * lets the prefers-color-scheme media query decide, so it flips live with the device.
+ */
+const darkQuery = matchMedia('(prefers-color-scheme: dark)');
+
+function applyTheme(): void {
+  const root = document.documentElement;
+  if (settings.theme === 'auto') root.removeAttribute('data-theme');
+  else root.setAttribute('data-theme', resolveTheme(settings.theme, darkQuery.matches));
+  const meta = document.querySelector('meta[name="theme-color"]');
+  const paper = getComputedStyle(root).getPropertyValue('--paper').trim();
+  if (meta && paper) meta.setAttribute('content', paper);
+}
+
+darkQuery.addEventListener('change', applyTheme);
+applyTheme();
 
 let lastTap = { i: -1, t: 0 };
 function tapCell(i: number): void {
@@ -261,6 +280,7 @@ function refreshSettingsUI(): void {
   (diff.querySelector('option[value="fiendish"]') as HTMLOptionElement).disabled =
     !fiendishAllowed(settings.size);
   diff.value = requestedDifficulty();
+  ($('theme-select') as HTMLSelectElement).value = settings.theme;
   ($('autox-toggle') as HTMLInputElement).checked = settings.autoX;
   const rows = Object.entries(stats.counts)
     .sort(([a], [b]) => a.localeCompare(b))
@@ -295,6 +315,10 @@ $('size-select').addEventListener('change', (e) => {
 $('difficulty-select').addEventListener('change', (e) => {
   settings = { ...settings, difficulty: (e.target as HTMLSelectElement).value as Difficulty };
   persistence.saveSettings(settings); void newGame();
+});
+$('theme-select').addEventListener('change', (e) => {
+  settings = { ...settings, theme: (e.target as HTMLSelectElement).value as ThemeSetting };
+  persistence.saveSettings(settings); applyTheme();
 });
 $('autox-toggle').addEventListener('change', (e) => {
   settings = { ...settings, autoX: (e.target as HTMLInputElement).checked };
